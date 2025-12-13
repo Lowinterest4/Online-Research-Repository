@@ -7,8 +7,10 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     h1 { text-align: center; }
-    .research-card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
-    .research-card h3 { margin: 0 0 5px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 8px; text-align: left; border: 1px solid #ccc; }
+    th { background-color: #f4f4f4; }
+    tr:nth-child(even) { background-color: #fafafa; }
   </style>
 </head>
 <body>
@@ -22,66 +24,61 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    // Wait for the DOM to load before running JS
     document.addEventListener("DOMContentLoaded", async () => {
-
       // Initialize Supabase
-      const supabase = supabase.createClient(
-        "https://emakckalouwopodqehgn.supabase.co", // your project URL
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWtja2Fsb3V3b3BvZHFlaGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NzA3OTYsImV4cCI6MjA4MTE0Njc5Nn0.eRQMLCrL4xEb58ap8RKTOyJx8pusfbr8Ut037GpYXfk"
+      const supabaseClient = supabase.createClient(
+        "https://emakckalouwopodqehgn.supabase.co", // Your Supabase URL
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWtja2Fsb3V3b3BvZHFlaGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NzA3OTYsImV4cCI6MjA4MTE0Njc5Nn0.eRQMLCrL4xEb58ap8RKTOyJx8pusfbr8Ut037GpYXfk" // Your anon key
       );
-
-      // Load research data
-      const { data, error } = await supabase
-        .from('researches')
-        .select('*')
-        .order('research_date', { ascending: false });
 
       const container = document.getElementById('research-list');
 
-      if (error) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('researches')
+          .select('*')
+          .order('research_date', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          container.innerHTML = "No research found.";
+          return;
+        }
+
+        // Build table
+        let tableHTML = `<table>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Authors</th>
+            <th>Course</th>
+            <th>Research Date</th>
+            <th>Abstract</th>
+          </tr>`;
+
+        data.forEach(item => {
+          tableHTML += `
+            <tr>
+              <td>${item.id}</td>
+              <td>${item.title}</td>
+              <td>${item.authors}</td>
+              <td>${item.course}</td>
+              <td>${new Date(item.research_date).toLocaleDateString()}</td>
+              <td>${item.abstract}</td>
+            </tr>
+          `;
+        });
+
+        tableHTML += `</table>`;
+        container.innerHTML = tableHTML;
+
+      } catch (err) {
+        console.error(err);
         container.innerHTML = "Error loading research.";
-        console.error(error);
-        return;
       }
-
-      if (!data || data.length === 0) {
-        container.innerHTML = "No research found.";
-        return;
-      }
-
-      // Clear loading text
-      container.innerHTML = '';
-
-     // Create table
-let tableHTML = `<table border="1" cellpadding="5" cellspacing="0">
-  <tr>
-    <th>ID</th>
-    <th>Title</th>
-    <th>Authors</th>
-    <th>Course</th>
-    <th>Research Date</th>
-    <th>Abstract</th>
-  </tr>`;
-
-data.forEach(item => {
-  tableHTML += `
-    <tr>
-      <td>${item.id}</td>
-      <td>${item.title}</td>
-      <td>${item.authors}</td>
-      <td>${item.course}</td>
-      <td>${new Date(item.research_date).toLocaleDateString()}</td>
-      <td>${item.abstract}</td>
-    </tr>
-  `;
-});
-
-tableHTML += `</table>`;
-container.innerHTML = tableHTML;
-
-
     });
   </script>
+
 </body>
 </html>
