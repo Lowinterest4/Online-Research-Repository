@@ -15,33 +15,43 @@
 
   <h1>Online Research Library</h1>
 
-  <!-- Research List -->
-  <div id="research-list"></div>
+  <!-- Research List Container -->
+  <div id="research-list">Loading research...</div>
 
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    // Initialize Supabase
-    const supabase = supabase.createClient(
-      "https://emakckalouwopodqehgn.supabase.co", // replace with your project URL
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWtja2Fsb3V3b3BvZHFlaGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NzA3OTYsImV4cCI6MjA4MTE0Njc5Nn0.eRQMLCrL4xEb58ap8RKTOyJx8pusfbr8Ut037GpYXfk" // replace with your anon public key
-    );
+    // Wait for the DOM to load before running JS
+    document.addEventListener("DOMContentLoaded", async () => {
 
-    // Load research data
-    async function loadResearch() {
+      // Initialize Supabase
+      const supabase = supabase.createClient(
+        "https://emakckalouwopodqehgn.supabase.co", // your project URL
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWtja2Fsb3V3b3BvZHFlaGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NzA3OTYsImV4cCI6MjA4MTE0Njc5Nn0.eRQMLCrL4xEb58ap8RKTOyJx8pusfbr8Ut037GpYXfk"
+      );
+
+      // Load research data
       const { data, error } = await supabase
         .from('researches')
         .select('*')
         .order('research_date', { ascending: false });
 
+      const container = document.getElementById('research-list');
+
       if (error) {
-        console.error("Error loading research:", error);
+        container.innerHTML = "Error loading research.";
+        console.error(error);
         return;
       }
 
-      const container = document.getElementById('research-list');
-      container.innerHTML = ''; // Clear any existing content
+      if (!data || data.length === 0) {
+        container.innerHTML = "No research found.";
+        return;
+      }
+
+      // Clear loading text
+      container.innerHTML = '';
 
       data.forEach(item => {
         const div = document.createElement('div');
@@ -55,11 +65,8 @@
         `;
         container.appendChild(div);
       });
-    }
 
-    // Run on page load
-    loadResearch();
+    });
   </script>
-  
 </body>
 </html>
