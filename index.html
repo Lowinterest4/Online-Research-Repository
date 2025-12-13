@@ -53,18 +53,33 @@
       // Clear loading text
       container.innerHTML = '';
 
-      data.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'research-card';
-        div.innerHTML = `
-          <h3>${item.title}</h3>
-          <p><strong>Authors:</strong> ${item.authors}</p>
-          <p><strong>Course:</strong> ${item.course}</p>
-          <p><strong>Date:</strong> ${new Date(item.research_date).toLocaleDateString()}</p>
-          <p><strong>Abstract:</strong> ${item.abstract}</p>
-        `;
-        container.appendChild(div);
-      });
+     // Create table
+let tableHTML = `<table border="1" cellpadding="5" cellspacing="0">
+  <tr>
+    <th>ID</th>
+    <th>Title</th>
+    <th>Authors</th>
+    <th>Course</th>
+    <th>Research Date</th>
+    <th>Abstract</th>
+  </tr>`;
+
+data.forEach(item => {
+  tableHTML += `
+    <tr>
+      <td>${item.id}</td>
+      <td>${item.title}</td>
+      <td>${item.authors}</td>
+      <td>${item.course}</td>
+      <td>${new Date(item.research_date).toLocaleDateString()}</td>
+      <td>${item.abstract}</td>
+    </tr>
+  `;
+});
+
+tableHTML += `</table>`;
+container.innerHTML = tableHTML;
+
 
     });
   </script>
