@@ -1,84 +1,277 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Online Research Library</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h1 { text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 8px; text-align: left; border: 1px solid #ccc; }
-    th { background-color: #f4f4f4; }
-    tr:nth-child(even) { background-color: #fafafa; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URSM Library</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body { font-family: Arial, sans-serif; margin:0; height:100vh; display:flex; flex-direction:column; }
+header { background:#004080; padding:10px 20px; color:white; }
+header input { width:100%; padding:8px; border:none; border-radius:4px; }
+
+main { flex:1; display:flex; overflow:hidden; }
+#sidebar { width:240px; background:#f2f2f2; padding:15px; overflow-y:auto; }
+#main-content { flex:1; padding:20px; overflow-y:auto; }
+
+#upload-form-container { margin-bottom:20px; border:1px solid #ccc; border-radius:6px; }
+#toggle-upload { width:100%; padding:10px; border:none; background:#004080; color:white; cursor:pointer; font-weight:bold; border-radius:6px 6px 0 0; }
+#uploadFormWrapper { display:none; padding:10px; }
+#uploadForm input, #uploadForm textarea { width:100%; padding:6px; margin:4px 0; border-radius:4px; border:1px solid #ccc; }
+#uploadForm label { font-weight:bold; margin-top:8px; display:block; }
+#uploadForm button { background:#004080; color:white; padding:8px 12px; border:none; border-radius:4px; margin-top:8px; cursor:pointer; }
+
+.abstract-page { border-bottom:1px solid #ccc; padding-bottom:10px; margin-bottom:15px; }
+.abstract-title { font-size:18px; font-weight:bold; color:#004080; cursor:pointer; }
+.abstract-meta { font-size:12px; color:#666; margin-top:2px; }
+.abstract-content { display:none; margin-top:8px; }
+.meta-grid { display:grid; grid-template-columns:120px 1fr; gap:6px; }
+
+#keyword-buttons, #year-buttons { display:flex; flex-direction:column; gap:6px; }
+#keyword-buttons button, #year-buttons button { width:100%; text-align:left; cursor:pointer; }
+
+.delete-btn { margin-top:10px; padding:6px 10px; border:none; border-radius:4px; color:white; background:#d32f2f; margin-left:5px; }
+</style>
 </head>
+
 <body>
 
-  <h1>Online Research Library</h1>
+<header>
+  <input id="search" placeholder="Search by title, author, keyword...">
+</header>
 
-  <!-- Research List Container -->
-  <div id="research-list">Loading research...</div>
+<main>
 
-  <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<div id="sidebar">
+  <h3>Filter by Year</h3>
+  <div id="year-buttons"></div>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      // Initialize Supabase
-      const supabaseClient = supabase.createClient(
-        "https://emakckalouwopodqehgn.supabase.co", // Your Supabase URL
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWtja2Fsb3V3b3BvZHFlaGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NzA3OTYsImV4cCI6MjA4MTE0Njc5Nn0.eRQMLCrL4xEb58ap8RKTOyJx8pusfbr8Ut037GpYXfk" // Your anon key
-      );
+  <h3>Top Keywords</h3>
+  <div id="keyword-buttons"></div>
+</div>
 
-      const container = document.getElementById('research-list');
+<div id="main-content">
 
-      try {
-        const { data, error } = await supabaseClient
-          .from('researches')
-          .select('*')
-          .order('research_date', { ascending: false });
+  <!-- Collapsible Upload Form -->
+  <div id="upload-form-container">
+    <button id="toggle-upload">Upload Research ▼</button>
+    <div id="uploadFormWrapper">
+      <form id="uploadForm">
+        <label>Title</label>
+        <input type="text" id="title" required>
 
-        if (error) throw error;
+        <label>Category</label>
+        <input type="text" id="category">
 
-        if (!data || data.length === 0) {
-          container.innerHTML = "No research found.";
-          return;
-        }
+        <label>Authors (comma separated)</label>
+        <input type="text" placeholder="e.g., Person A, Person B...etc" id="authors">
 
-        // Build table
-        let tableHTML = `<table>
-          <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Authors</th>
-            <th>Course</th>
-            <th>Research Date</th>
-            <th>Abstract</th>
-          </tr>`;
+        <label>Course</label>
+        <input type="text" placeholder="e.g., Bachelor of......" id="course">
 
-        data.forEach(item => {
-          tableHTML += `
-            <tr>
-              <td>${item.id}</td>
-              <td>${item.title}</td>
-              <td>${item.authors}</td>
-              <td>${item.course}</td>
-              <td>${new Date(item.research_date).toLocaleDateString()}</td>
-              <td>${item.abstract}</td>
-            </tr>
-          `;
-        });
+        <label>Major</label>
+        <input type="text" placeholder="e.g., Information Communication Technology" id="major">
 
-        tableHTML += `</table>`;
-        container.innerHTML = tableHTML;
+        <label>Academic Year</label>
+        <input type="text" id="academic_year" placeholder="e.g., 2020-2021">
 
-      } catch (err) {
-        console.error(err);
-        container.innerHTML = "Error loading research.";
-      }
-    });
-  </script>
+        <label>Research Date (Month Year)</label>
+        <input type="text" id="research_date" placeholder="e.g., July 2021">
+
+        <label>Abstract</label>
+        <textarea id="abstract" rows="4"></textarea>
+
+        <label>Keywords (comma separated)</label>
+        <input type="text" id="keywords" placeholder="e.g., Key, Words">
+
+        <label>Upload Password</label>
+        <input type="password" id="upload_password" placeholder="Enter password" required>
+
+        <button type="submit">Upload</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Research List -->
+  <div id="research-list">Loading…</div>
+
+</div>
+
+</main>
+
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+
+const SUPABASE_URL = "https://emakckalouwopodqehgn.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtYWtja2Fsb3V3b3BvZHFlaGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NzA3OTYsImV4cCI6MjA4MTE0Njc5Nn0.eRQMLCrL4xEb58ap8RKTOyJx8pusfbr8Ut037GpYXfk";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const list = document.getElementById("research-list");
+const search = document.getElementById("search");
+let dataCache = [];
+
+/* ---------- HELPERS ---------- */
+const toArray = v =>
+  Array.isArray(v) ? v :
+  typeof v === "string" ? v.split("\n").map(x=>x.trim()).filter(Boolean) : [];
+
+const firstAuthor = a =>
+  Array.isArray(a) && a.length ? a[0] + (a.length>1 ? " et al." : "") : a || "";
+
+/* ---------- LOAD ---------- */
+async function load() {
+  const { data, error } = await supabaseClient
+    .from("researches")
+    .select("*")
+    .order("created_at",{ascending:false});
+
+  if (error) {
+    list.textContent = error.message;
+    return;
+  }
+
+  dataCache = data || [];
+  render(dataCache);
+  years(dataCache);
+  keywords(dataCache);
+}
+await load();
+
+/* ---------- RENDER ---------- */
+function render(rows) {
+  if (!rows.length) {
+    list.textContent = "No research found.";
+    return;
+  }
+
+  list.innerHTML = rows.map(r=>`
+    <div class="abstract-page">
+      <div class="abstract-title">
+        ${r.title}
+        <div class="abstract-meta">${firstAuthor(r.authors)} — ${r.academic_year||"—"}</div>
+      </div>
+
+      <div class="abstract-content">
+        <div class="meta-grid">
+          <div>Authors</div><div>${toArray(r.authors).join("<br>")}</div>
+          <div>Course</div><div>${toArray(r.course).join("<br>")}</div>
+          <div>Category</div><div>${r.category||""}</div>
+          <div>Date</div><div>${r.research_date||""}</div>
+          <div>Keywords</div><div>${(r.keywords||[]).join(", ")}</div>
+        </div>
+
+        <p><strong>EXECUTIVE SUMMARY</strong><br>${r.abstract||""}</p>
+
+        <button class="delete-btn" onclick="del('${r.id}')">Delete</button>
+      </div>
+    </div>
+  `).join("");
+
+  document.querySelectorAll(".abstract-title").forEach(t=>{
+    t.onclick=()=>t.nextElementSibling.style.display =
+      t.nextElementSibling.style.display==="block"?"none":"block";
+  });
+}
+
+/* ---------- SEARCH ---------- */
+search.oninput = ()=>{
+  const q = search.value.toLowerCase();
+  render(dataCache.filter(r =>
+    r.title?.toLowerCase().includes(q) ||
+    toArray(r.authors).join(" ").toLowerCase().includes(q) ||
+    (r.keywords||[]).some(k=>k.toLowerCase().includes(q))
+  ));
+};
+
+/* ---------- FILTERS ---------- */
+function years(data){
+  const y=[...new Set(data.map(d=>d.academic_year).filter(Boolean))];
+  document.getElementById("year-buttons").innerHTML =
+    y.map(v=>`<button onclick="render(dataCache.filter(r=>r.academic_year==='${v}'))">${v}</button>`).join("");
+}
+
+function keywords(data){
+  const m={};
+  data.forEach(d=>(d.keywords||[]).forEach(k=>m[k]=(m[k]||0)+1));
+  document.getElementById("keyword-buttons").innerHTML =
+    Object.keys(m).slice(0,10).map(k=>`<button onclick="search.value='${k}';search.oninput()">${k}</button>`).join("");
+}
+
+/* ---------- COLLAPSIBLE FORM ---------- */
+const toggleBtn = document.getElementById("toggle-upload");
+const formWrapper = document.getElementById("uploadFormWrapper");
+
+toggleBtn.onclick = () => {
+  const visible = formWrapper.style.display === "block";
+  formWrapper.style.display = visible ? "none" : "block";
+  toggleBtn.textContent = visible ? "Upload Research ▼" : "Upload Research ▲";
+};
+
+/* ---------- PASSWORD PROTECTION ---------- */
+const UPLOAD_PASSWORD = "YourSecret123"; // same password for upload & delete
+const uploadForm = document.getElementById("uploadForm");
+
+uploadForm.onsubmit = async e =>{
+  e.preventDefault();
+
+  const password = document.getElementById("upload_password").value.trim();
+  if(password !== UPLOAD_PASSWORD){
+    alert("Incorrect password! Upload denied.");
+    return;
+  }
+
+  const title = document.getElementById("title").value.trim();
+  const category = document.getElementById("category").value.trim();
+  const authors = document.getElementById("authors").value
+    .split(",").map(a=>a.trim()).filter(Boolean).join("\n");
+  const course = document.getElementById("course").value.trim();
+  const major = document.getElementById("major").value.trim();
+  const academic_year = document.getElementById("academic_year").value.trim();
+  const research_date = document.getElementById("research_date").value.trim();
+  const abstract = document.getElementById("abstract").value.trim();
+  const keywords = document.getElementById("keywords").value
+    .split(",").map(k=>k.trim()).filter(Boolean);
+
+  const combinedCourse = course + (major ? "\nMajor in " + major : "");
+
+  const { data, error } = await supabaseClient.from("researches").insert([{
+    title,
+    category,
+    authors,
+    course: combinedCourse,
+    academic_year,
+    research_date,
+    abstract,
+    keywords
+  }]);
+
+  if (error) alert(error.message);
+  else {
+    alert("Research uploaded successfully!");
+    uploadForm.reset();
+    load();
+  }
+};
+
+/* ---------- DELETE WITH PASSWORD ---------- */
+window.del = async id =>{
+  const password = prompt("Enter password to delete this research:");
+  if(password !== UPLOAD_PASSWORD){
+    alert("Incorrect password! Delete denied.");
+    return;
+  }
+
+  if (!confirm("Delete this research?")) return;
+
+  const { error } = await supabaseClient.from("researches").delete().eq("id",id);
+  if (error) alert(error.message);
+  else location.reload();
+};
+
+});
+</script>
 
 </body>
 </html>
