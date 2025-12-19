@@ -268,10 +268,15 @@ function renderKeywords(data){
   });
 
   document.getElementById("keyword-buttons").innerHTML =
-    Object.keys(m).slice(0,10).map(k =>
-      `<button onclick="search.value='${k}';search.oninput()">${k}</button>`
-    ).join("");
+    Object.entries(m)
+      .sort((a, b) => b[1] - a[1]) // most used keywords first
+      .slice(0, 10)
+      .map(([k]) =>
+        `<button onclick="search.value='${k}';search.oninput()">${k}</button>`
+      )
+      .join("");
 }
+
 
 /* ---------- COLLAPSIBLE FORM ---------- */
 const toggleBtn = document.getElementById("toggle-upload");
