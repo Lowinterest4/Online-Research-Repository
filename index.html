@@ -43,7 +43,7 @@ main { flex:1; display:flex; overflow:hidden; }
 #editForm .form-actions button.save:hover { background:#125aa0; }
 #editForm .form-actions button.cancel { background:#ccc; color:#333; }
 #editForm .form-actions button.cancel:hover { background:#aaa; }
-
+.clearbtn {margin-top:10px; background:#888; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;}
 
 </style>
 </head>
@@ -84,7 +84,7 @@ main { flex:1; display:flex; overflow:hidden; }
       </div>
     </form>
   </div>
-</div
+</div>
 
 <header>
   <input id="search" placeholder="Search by title, author, keyword...">
@@ -98,6 +98,8 @@ main { flex:1; display:flex; overflow:hidden; }
 
   <h3>Top Keywords</h3>
   <div id="keyword-buttons"></div>
+  <button id="clear-filters" class="clearbtn">Clear Filters</button>
+
 </div>
 
 <div id="main-content">
@@ -159,19 +161,46 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const list = document.getElementById("research-list");
 const search = document.getElementById("search");
 let dataCache = [];
+const clearFiltersBtn = document.getElementById("clear-filters");
+clearFiltersBtn.onclick = () => {
+  // Reset all filters
+  filters.text = "";
+  filters.year = null;
+  filters.keyword = null;
+  filters.date = null;
+
+  // Reset search input
+  search.value = "";
+
+  // Re-render full data
+  applyFilters();
+};
 
 /* ---------- HELPERS ---------- */
+const filters = {
+  text: "",
+  year: null,
+  keyword: null,
+  date: null
+};
+
 const toArray = v =>
-  Array.isArray(v) ? v :
-  typeof v === "string" ? v.split("\n").map(x=>x.trim()).filter(Boolean) : [];
+  Array.isArray(v)
+    ? v
+    : typeof v === "string"
+      ? v.split(/[\n,]/).map(x => x.trim()).filter(Boolean)
+      : [];
 
 const firstAuthor = a =>
   Array.isArray(a) && a.length ? a[0] + (a.length>1 ? " et al." : "") : a || "";
   
-const toKeywordArray = v =>
-  Array.isArray(v) ? v :
-  typeof v === "string" ? v.split(",").map(k => k.trim()).filter(Boolean) :
-  [];
+const toKeywordArray = v => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map(k => k.toString().trim()).filter(Boolean);
+  if (typeof v === "string") return v.split(",").map(k => k.trim()).filter(Boolean);
+  return [];
+};
+
 
 
 /* ---------- LOAD ---------- */
@@ -186,15 +215,55 @@ async function load() {
     return;
   }
 
-  dataCache = data || [];
-  render(dataCache);
-  renderYears(dataCache);
-  renderKeywords(dataCache);
+ dataCache = data || [];
+
+/* reset filters */
+filters.text = "";
+filters.year = null;
+filters.keyword = null;
+filters.date = null;
+search.value = "";
+
+render(dataCache);
+renderYears(dataCache);
+renderKeywords(dataCache);
 
 }
 await load();
 
 /* ---------- RENDER ---------- */
+function applyFilters() {
+  const q = filters.text.toLowerCase();
+
+  const filtered = dataCache.filter(r => {
+
+    const matchText =
+      !q ||
+      r.title?.toLowerCase().includes(q) ||
+      toArray(r.authors).join(" ").toLowerCase().includes(q) ||
+      toKeywordArray(r.keywords).some(k => k.toLowerCase().includes(q)) ||
+      r.research_date?.toLowerCase().includes(q);
+
+    const matchYear =
+      !filters.year || r.academic_year === filters.year;
+
+    const matchKeyword =
+  !filters.keyword ||
+  toKeywordArray(r.keywords).some(k =>
+    k.toLowerCase().includes(filters.keyword.toLowerCase())
+  );
+
+
+
+    const matchDate =
+      !filters.date || r.research_date === filters.date;
+
+    return matchText && matchYear && matchKeyword && matchDate;
+  });
+
+  render(filtered);
+}
+
 function render(rows) {
   if (!rows.length) {
     list.textContent = "No research found.";
@@ -214,7 +283,7 @@ function render(rows) {
           <div>Course</div><div>${toArray(r.course).join("<br>")}</div>
           <div>Category</div><div>${r.category||""}</div>
           <div>Date</div><div>${r.research_date||""}</div>
-          <div>Keywords</div><div>${(r.keywords||[]).join(", ")}</div>
+          <div>Keywords</div><div>${toKeywordArray(r.keywords).join(", ")}</div>
         </div>
 
         <p><strong>EXECUTIVE SUMMARY</strong><br>${r.abstract||""}</p>
@@ -232,14 +301,11 @@ function render(rows) {
 }
 
 /* ---------- SEARCH ---------- */
-search.oninput = ()=>{
-  const q = search.value.toLowerCase();
-  render(dataCache.filter(r =>
-    r.title?.toLowerCase().includes(q) ||
-    toArray(r.authors).join(" ").toLowerCase().includes(q) ||
-    (r.keywords||[]).some(k=>k.toLowerCase().includes(q))
-  ));
+search.oninput = () => {
+  filters.text = search.value;
+  applyFilters();
 };
+
 
 /* ---------- FILTERS ---------- */
 function renderYears(data){
@@ -251,14 +317,16 @@ function renderYears(data){
   years.forEach(year => {
     const btn = document.createElement("button");
     btn.textContent = year;
-    btn.onclick = () => {
-      render(dataCache.filter(r => r.academic_year === year));
-    };
+   btn.onclick = () => {
+  filters.year = filters.year === year ? null : year;
+  applyFilters();
+};
+
     container.appendChild(btn);
   });
 }
 
-function renderKeywords(data){
+function renderKeywords(data) {
   const m = {};
 
   data.forEach(d => {
@@ -267,15 +335,23 @@ function renderKeywords(data){
     });
   });
 
-  document.getElementById("keyword-buttons").innerHTML =
-    Object.entries(m)
-      .sort((a, b) => b[1] - a[1]) // most used keywords first
-      .slice(0, 10)
-      .map(([k]) =>
-        `<button onclick="search.value='${k}';search.oninput()">${k}</button>`
-      )
-      .join("");
+  const container = document.getElementById("keyword-buttons");
+  container.innerHTML = "";
+
+  Object.entries(m)
+    .sort((a, b) => b[1] - a[1]) // most used first
+    .slice(0, 10)
+    .forEach(([k]) => {
+      const btn = document.createElement("button");
+      btn.textContent = k;
+      btn.addEventListener("click", () => {
+        filters.keyword = filters.keyword === k ? null : k;
+        applyFilters();
+      });
+      container.appendChild(btn);
+    });
 }
+
 
 
 /* ---------- COLLAPSIBLE FORM ---------- */
@@ -418,3 +494,4 @@ window.editResearch = async id => {
 
 </body>
 </html>
+	
