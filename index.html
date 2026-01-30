@@ -59,9 +59,15 @@ main { flex:1; display:flex; overflow:hidden; }
 
       <label>Category</label>
       <input type="text" id="editCategory">
+	  
+	  <label>SDG</label>
+	  <input type="text" id="editSDG">
 
       <label>Authors (comma separated)</label>
       <input type="text" id="editAuthors">
+	  
+	  <label>Advisers</label>
+	  <input type="text" id="editAdvisers">
 
       <label>Course</label>
       <input type="text" id="editCourse">
@@ -95,6 +101,9 @@ main { flex:1; display:flex; overflow:hidden; }
 <div id="sidebar">
   <h3>Filter by Year</h3>
   <div id="year-buttons"></div>
+  
+  <h3>SDG</h3>
+  <div id="sdg-buttons"></div>
 
   <h3>Top Keywords</h3>
   <div id="keyword-buttons"></div>
@@ -114,9 +123,15 @@ main { flex:1; display:flex; overflow:hidden; }
 
         <label>Category</label>
         <input type="text" id="category" placeholder="e.g., An Undergraduate Thesis....">
-
+		
+		<label>SDG</label>
+		<input type="text" id="sdg" placeholder="e.g, SDG 4 - Quality Education">
+		
         <label>Authors (comma separated)</label>
         <input type="text" placeholder="e.g., Person A, Person B...etc" id="authors">
+
+		<label>Advisers (comma separated)</label>
+		<input type="text" id="advisers" placeholder="e.g, Juan Dela Cruz, Maria Santos">
 
         <label>Course</label>
         <input type="text" placeholder="e.g., Bachelor of......" id="course">
@@ -166,6 +181,7 @@ clearFiltersBtn.onclick = () => {
   // Reset all filters
   filters.text = "";
   filters.year = null;
+  filters.sdg = null;
   filters.keyword = null;
   filters.date = null;
 
@@ -220,12 +236,14 @@ async function load() {
 /* reset filters */
 filters.text = "";
 filters.year = null;
+filters.sdg = null;
 filters.keyword = null;
 filters.date = null;
 search.value = "";
 
 render(dataCache);
 renderYears(dataCache);
+renderSDGs(dataCache);
 renderKeywords(dataCache);
 
 }
@@ -238,14 +256,23 @@ function applyFilters() {
   const filtered = dataCache.filter(r => {
 
     const matchText =
-      !q ||
-      r.title?.toLowerCase().includes(q) ||
-      toArray(r.authors).join(" ").toLowerCase().includes(q) ||
-      toKeywordArray(r.keywords).some(k => k.toLowerCase().includes(q)) ||
-      r.research_date?.toLowerCase().includes(q);
+  !q ||
+  r.title?.toLowerCase().includes(q) ||
+  toArray(r.authors).join(" ").toLowerCase().includes(q) ||
+  toArray(r.advisers).join(" ").toLowerCase().includes(q) ||
+  toKeywordArray(r.keywords).some(k => k.toLowerCase().includes(q)) ||
+  r.sdg?.toLowerCase().includes(q) ||
+  r.research_date?.toLowerCase().includes(q);
+
 
     const matchYear =
-      !filters.year || r.academic_year === filters.year;
+  !filters.year ||
+  (r.research_date && r.research_date.includes(filters.year));
+
+const matchSDG =
+  !filters.sdg ||
+  r.sdg?.toLowerCase().includes(filters.sdg.toLowerCase());
+
 
     const matchKeyword =
   !filters.keyword ||
@@ -258,7 +285,7 @@ function applyFilters() {
     const matchDate =
       !filters.date || r.research_date === filters.date;
 
-    return matchText && matchYear && matchKeyword && matchDate;
+    return matchText && matchYear && matchSDG && matchKeyword && matchDate;
   });
 
   render(filtered);
@@ -278,13 +305,29 @@ function render(rows) {
       </div>
 
       <div class="abstract-content">
-        <div class="meta-grid">
-          <div>Authors</div><div>${toArray(r.authors).join("<br>")}</div>
-          <div>Course</div><div>${toArray(r.course).join("<br>")}</div>
-          <div>Category</div><div>${r.category||""}</div>
-          <div>Date</div><div>${r.research_date||""}</div>
-          <div>Keywords</div><div>${toKeywordArray(r.keywords).join(", ")}</div>
-        </div>
+       <div class="meta-grid">
+  <div>Authors</div>
+  <div>${toArray(r.authors).join("<br>")}</div>
+
+  <div>Advisers</div>
+  <div>${toArray(r.advisers).join("<br>")}</div>
+
+  <div>Course</div>
+  <div>${toArray(r.course).join("<br>")}</div>
+
+  <div>Category</div>
+  <div>${r.category||""}</div>
+
+  <div>SDG</div>
+  <div>${r.sdg||""}</div>
+
+  <div>Date</div>
+  <div>${r.research_date||""}</div>
+
+  <div>Keywords</div>
+  <div>${toKeywordArray(r.keywords).join(", ")}</div>
+</div>
+
 
         <p><strong>EXECUTIVE SUMMARY</strong><br>${r.abstract||""}</p>
 
@@ -309,24 +352,65 @@ search.oninput = () => {
 
 /* ---------- FILTERS ---------- */
 function renderYears(data){
-  const years = [...new Set(data.map(d => d.academic_year).filter(Boolean))];
-  const container = document.getElementById("year-buttons");
+  const years = [
+    ...new Set(
+      data
+        .map(d => {
+          if (!d.research_date) return null;
 
+          // Extract 4-digit year (ex: 2021 from "July 2021")
+          const match = d.research_date.match(/\b\d{4}\b/);
+          return match ? match[0] : null;
+        })
+        .filter(Boolean)
+    )
+  ].sort((a,b) => b - a);
+
+  const container = document.getElementById("year-buttons");
   container.innerHTML = "";
 
   years.forEach(year => {
     const btn = document.createElement("button");
     btn.textContent = year;
-   btn.onclick = () => {
-  filters.year = filters.year === year ? null : year;
-  applyFilters();
-};
+
+    btn.onclick = () => {
+      filters.year = filters.year === year ? null : year;
+      applyFilters();
+    };
 
     container.appendChild(btn);
   });
 }
 
-function renderKeywords(data) {
+function renderSDGs(data){
+  const m = {};
+
+  data.forEach(d => {
+    if(!d.sdg) return;
+    const s = d.sdg.trim();
+    if(!s) return;
+    m[s] = (m[s] || 0) + 1;
+  });
+
+  const container = document.getElementById("sdg-buttons");
+  container.innerHTML = "";
+
+  Object.entries(m)
+    .sort((a,b)=>b[1]-a[1])
+    .forEach(([sdg])=>{
+      const btn = document.createElement("button");
+      btn.textContent = sdg;
+
+      btn.onclick = () => {
+        filters.sdg = filters.sdg === sdg ? null : sdg;
+        applyFilters();
+      };
+
+      container.appendChild(btn);
+    });
+}
+
+ function renderKeywords(data) {
   const m = {};
 
   data.forEach(d => {
@@ -339,20 +423,20 @@ function renderKeywords(data) {
   container.innerHTML = "";
 
   Object.entries(m)
-    .sort((a, b) => b[1] - a[1]) // most used first
+    .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .forEach(([k]) => {
       const btn = document.createElement("button");
       btn.textContent = k;
-      btn.addEventListener("click", () => {
+
+      btn.onclick = () => {
         filters.keyword = filters.keyword === k ? null : k;
         applyFilters();
-      });
+      };
+
       container.appendChild(btn);
     });
 }
-
-
 
 /* ---------- COLLAPSIBLE FORM ---------- */
 const toggleBtn = document.getElementById("toggle-upload");
@@ -379,8 +463,11 @@ uploadForm.onsubmit = async e =>{
 
   const title = document.getElementById("title").value.trim();
   const category = document.getElementById("category").value.trim();
+  const sdg = document.getElementById("sdg").value.trim();
   const authors = document.getElementById("authors").value
     .split(",").map(a=>a.trim()).filter(Boolean).join("\n");
+  const advisers = document.getElementById("advisers").value
+  .split(",").map(a=>a.trim()).filter(Boolean).join("\n");
   const course = document.getElementById("course").value.trim();
   const major = document.getElementById("major").value.trim();
   const academic_year = document.getElementById("academic_year").value.trim();
@@ -394,7 +481,9 @@ uploadForm.onsubmit = async e =>{
   const { data, error } = await supabaseClient.from("researches").insert([{
     title,
     category,
+	sdg,
     authors,
+	advisers,
     course: combinedCourse,
     academic_year,
     research_date,
@@ -442,11 +531,13 @@ window.editResearch = async id => {
   document.getElementById("editTitle").value = record.title;
   document.getElementById("editCategory").value = record.category || "";
   document.getElementById("editAuthors").value = toArray(record.authors).join(", ");
-  document.getElementById("editCourse").value = toArray(record.course).join(" ");
+  document.getElementById("editCourse").value = record.course || "";
   document.getElementById("editYear").value = record.academic_year || "";
   document.getElementById("editDate").value = record.research_date || "";
   document.getElementById("editAbstract").value = record.abstract || "";
   document.getElementById("editKeywords").value = (record.keywords || []).join(", ");
+  document.getElementById("editAdvisers").value = toArray(record.advisers).join(", ");
+  document.getElementById("editSDG").value = record.sdg || "";
 
   // Show modal
   const modal = document.getElementById("editModal");
@@ -470,7 +561,10 @@ window.editResearch = async id => {
       academic_year: document.getElementById("editYear").value.trim(),
       research_date: document.getElementById("editDate").value.trim(),
       abstract: document.getElementById("editAbstract").value.trim(),
-      keywords: document.getElementById("editKeywords").value.split(",").map(k => k.trim()).filter(Boolean)
+      keywords: document.getElementById("editKeywords").value.split(",").map(k => k.trim()).filter(Boolean),
+	  advisers: document.getElementById("editAdvisers").value
+	  .split(",").map(a => a.trim()).filter(Boolean).join("\n"),
+	  sdg: document.getElementById("editSDG").value.trim(),
     };
 
     const { error } = await supabaseClient
@@ -486,9 +580,6 @@ window.editResearch = async id => {
     }
   };
 };
-
-
-  
 });
 </script>
 
