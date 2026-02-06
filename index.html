@@ -196,8 +196,14 @@ clearFiltersBtn.onclick = () => {
 const filters = {
   text: "",
   year: null,
+  sdg: null,
   keyword: null,
   date: null
+};
+const asText = v => {
+  if (!v) return "";
+  if (Array.isArray(v)) return v.join(", ");
+  return String(v);
 };
 
 const toArray = v =>
@@ -261,7 +267,9 @@ function applyFilters() {
   toArray(r.authors).join(" ").toLowerCase().includes(q) ||
   toArray(r.advisers).join(" ").toLowerCase().includes(q) ||
   toKeywordArray(r.keywords).some(k => k.toLowerCase().includes(q)) ||
-  r.sdg?.toLowerCase().includes(q) ||
+  asText(asText(r.sdg)
+)
+?.toLowerCase().includes(q) ||
   r.research_date?.toLowerCase().includes(q);
 
 
@@ -271,7 +279,8 @@ function applyFilters() {
 
 const matchSDG =
   !filters.sdg ||
-  r.sdg?.toLowerCase().includes(filters.sdg.toLowerCase());
+  asText(r.sdg)
+?.toLowerCase().includes(filters.sdg.toLowerCase());
 
 
     const matchKeyword =
@@ -310,7 +319,8 @@ function render(rows) {
   <div>${toArray(r.authors).join("<br>")}</div>
 
   <div>Advisers</div>
-  <div>${toArray(r.advisers).join("<br>")}</div>
+  <div>${toArray(asText(r.advisers)).join("<br>")
+}</div>
 
   <div>Course</div>
   <div>${toArray(r.course).join("<br>")}</div>
@@ -319,7 +329,8 @@ function render(rows) {
   <div>${r.category||""}</div>
 
   <div>SDG</div>
-  <div>${r.sdg||""}</div>
+  <div>${asText(r.sdg)
+||""}</div>
 
   <div>Date</div>
   <div>${r.research_date||""}</div>
